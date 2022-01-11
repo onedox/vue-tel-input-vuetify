@@ -2,25 +2,20 @@
   <div :class="['vue-tel-input-vuetify', wrapperClasses]">
     <div class="country-code">
       <v-select
-        v-model="countryCode"
-        :append-icon="appendIcon"
-        :class="selectClasses"
         :label="selectLabel"
+        v-model="countryCode"
         @change="onChangeCountryCode"
+        @click="toggleClear"
         :items="sortedCountries"
         :disabled="disabled"
         :outlined="outlined"
         :filled="filled"
         :flat="flat"
         :light="light"
-        :dark="dark"
-        :readonly="readonly"
         :shaped="shaped"
         :rounded="rounded"
         :background-color="backgroundColor"
         :dense="dense"
-        :menu-props="menuProps"
-        :height="inputHeight"
         item-text="name"
         item-value="iso2"
         return-object
@@ -37,7 +32,6 @@
     <v-text-field
       ref="input"
       type="tel"
-      :class="textFieldClasses"
       :messages="messages"
       :error-messages="errorMessages"
       :success-messages="successMessages"
@@ -54,7 +48,6 @@
       :full-width="fullWidth"
       :flat="flat"
       :light="light"
-      :dark="dark"
       :validate-on-blur="validateOnBlur"
       :outlined="outlined"
       :dense="dense"
@@ -69,7 +62,6 @@
       :label="label"
       :disabled="disabled"
       :placeholder="placeholder"
-      :persistent-placeholder="persistentPlaceholder"
       v-model="phone"
       :autofocus="autofocus"
       :name="name"
@@ -78,7 +70,6 @@
       :id="inputId"
       :maxlength="maxLen"
       :tabindex="inputOptions && inputOptions.tabindex ? inputOptions.tabindex : 0"
-      :height="inputHeight"
       @input="onInput"
       @blur="onBlur"
       @focus="onFocus"
@@ -120,9 +111,12 @@ import PhoneNumber from 'awesome-phonenumber';
 import utils, { getCountry, setCaretPosition } from './utils';
 
 function getDefault(key) {
-  return utils.options[key];
+  const value = utils.options[key];
+  if (typeof value === 'undefined') {
+    return utils.options[key];
+  }
+  return value;
 }
-
 // Polyfill for Event.path in IE 11: https://stackoverflow.com/a/46093727
 function getParents(node, memo) {
   const parsedMemo = memo || [];
@@ -132,7 +126,6 @@ function getParents(node, memo) {
   }
   return getParents(parentNode, parsedMemo.concat(parentNode));
 }
-
 export default {
   name: 'VueTelInputVuetify',
   directives: {
@@ -174,6 +167,9 @@ export default {
     },
   },
   props: {
+    clear: {
+      type: Function,
+    },
     messages: {
       type: [Array, String],
     },
@@ -191,10 +187,6 @@ export default {
     },
     prefix: {
       type: String,
-    },
-    appendIcon: {
-      type: String,
-      default: '',
     },
     backgroundColor: {
       type: String,
@@ -231,10 +223,6 @@ export default {
       default: false,
     },
     light: {
-      type: Boolean,
-      default: false,
-    },
-    dark: {
       type: Boolean,
       default: false,
     },
@@ -278,10 +266,6 @@ export default {
       type: Boolean,
       default: false,
     },
-    inputHeight: {
-      type: String,
-      default: '',
-    },
     value: {
       type: String,
       default: '',
@@ -294,17 +278,9 @@ export default {
       type: String,
       default: '',
     },
-    menuProps: {
-      type: [String, Array, Object],
-      default: () => {},
-    },
     placeholder: {
       type: String,
       default: () => getDefault('placeholder'),
-    },
-    persistentPlaceholder: {
-      type: Boolean,
-      default: false,
     },
     disabledFetchingCountry: {
       type: Boolean,
@@ -363,18 +339,6 @@ export default {
     wrapperClasses: {
       type: [String, Array, Object],
       default: () => getDefault('wrapperClasses'),
-    },
-    textFieldClasses: {
-      type: [String, Array, Object],
-      default: () => '',
-    },
-    selectClasses: {
-      type: [String, Array, Object],
-      default: () => '',
-    },
-    inputClasses: {
-      type: [String, Array, Object],
-      default: () => '',
     },
     inputId: {
       type: String,
@@ -495,7 +459,6 @@ export default {
           setCaretPosition(this.$refs.input, this.cursorPosition);
         });
       }
-
       this.$emit('input', this.phoneText, this.phoneObject);
     },
     activeCountry(value) {
@@ -684,6 +647,11 @@ export default {
     focus() {
       this.$refs.input.focus();
     },
+    toggleClear() {
+      if (this.clear) {
+        this.clear();
+      }
+    },
     toggleDropdown() {
       if (this.disabled) {
         return;
@@ -763,8 +731,9 @@ export default {
         .indexOf(this.activeCountry.iso2);
       this.open = false;
     },
-    onChangeCountryCode() {
-      this.choose(this.countryCode, true);
+    async onChangeCountryCode() {
+      await this.clear(this.countryCode);
+      await this.choose(this.countryCode, true);
     },
   },
 };
@@ -775,19 +744,15 @@ export default {
 .vti__flag {
   margin-right: 8px;
 }
-
 .vue-tel-input-vuetify {
   display: flex;
   align-items: center;
-
   .country-code {
     width: 75px;
   }
-
   li.last-preferred {
     border-bottom: 1px solid #cacaca;
   }
-
   .v-text-field {
     .v-select__selections {
       position: relative;
